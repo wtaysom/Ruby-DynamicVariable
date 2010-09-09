@@ -23,6 +23,7 @@ Gem::Specification.new do |s|
      "doc/readme_code/01example_at_start.rb",
      "doc/readme_code/02example_with_debug.rb",
      "doc/readme_code/03simple_with.rb",
+     "dynamic_variable.gemspec",
      "lib/dynamic_variable.rb",
      "spec/dynamic_variable_spec.rb"
   ]
