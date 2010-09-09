@@ -4,6 +4,12 @@ Occasionally a method's behavior should depend on the context in which it is cal
 
 DynamicVariable is similar to [dynamic scope](http://c2.com/cgi/wiki?DynamicScoping), [fluid-let](http://www.megasolutions.net/scheme/fluid-binding-25366.aspx), [SRFI 39 parameters](http://srfi.schemers.org/srfi-39/srfi-39.html), [cflow pointcuts](http://www.eclipse.org/aspectj/doc/released/progguide/semantics-pointcuts.html#d0e5410), even [Scala has its own DynamicVariable](http://www.scala-lang.org/api/current/scala/util/DynamicVariable.html).
 
+# Install
+
+Nothing fancy:
+
+	> sudo gem install dynamic_variable
+
 # Example: Context Dependent Debugging
 
 Suppose we have a method which is `frequently_called`.  It works fine except when called from `source_of_the_trouble`.  Suppose further that `source_of_the_trouble` doesn't directly invoke `frequently_called` instead there's a method `in_the_middle`.  Our setup looks like this:
