@@ -2,7 +2,7 @@
 
 Occasionally a method's behavior should depend on the context in which it is called.  What is happening above me on the stack?  DynamicVariable helps you in these context dependent situations.
 
-DynamicVariable is similar to [dynamic scope](http://c2.com/cgi/wiki?DynamicScoping), [fluid-let](http://www.megasolutions.net/scheme/fluid-binding-25366.aspx), [SRFI 39 parameters](http://srfi.schemers.org/srfi-39/srfi-39.html), even [Scala has its own DynamicVariable](http://www.scala-lang.org/api/current/scala/util/DynamicVariable.html).
+DynamicVariable is similar to [dynamic scope](http://c2.com/cgi/wiki?DynamicScoping), [fluid-let](http://www.megasolutions.net/scheme/fluid-binding-25366.aspx), [SRFI 39 parameters](http://srfi.schemers.org/srfi-39/srfi-39.html), [cflow pointcuts](http://www.eclipse.org/aspectj/doc/released/progguide/semantics-pointcuts.html#d0e5410), even [Scala has its own DynamicVariable](http://www.scala-lang.org/api/current/scala/util/DynamicVariable.html).
 
 # Example: Context Dependent Debugging
 
