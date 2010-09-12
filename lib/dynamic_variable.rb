@@ -1,7 +1,8 @@
 class DynamicVariable
-  @@un = Object.new
+  attr_accessor :default_variable
   
   def initialize(*pairs, &block)
+    self.default_variable = :value
     @bindings = []
     if block_given?
       with(*pairs, &block)
@@ -23,36 +24,27 @@ class DynamicVariable
   
   ##
   # with {}
-  #   varible defaults to :value
+  #   varible defaults to default_variable
   #   value defaults to nil
   #
   # with(value) { block }
-  #   variable defaults to :value
+  #   variable defaults to default_variable
   #
   # with(variable, value) { block }
   #
   # with(variable_1, value_1, ..., variable_n_1, value_n_1, value_n) { block }
-  #   variable_n defaults to :value
+  #   variable_n defaults to default_variable
   #
   # with(variable_1, value_1, ..., variable_n, value_n) { block }
   #
   def with(*pairs)
     pairs = [nil] if pairs.empty?
-    push_pairs(pairs)
     begin
+      push_pairs(pairs)
       yield(self)
     ensure
       pop_pairs(pairs)
     end
-  end
-  
-  def with_module
-    this = self
-    mod = Module.new
-    mod.send(:define_method, :with) do |*args, &block|
-      this.with(*args, &block)
-    end
-    mod
   end
   
   def [](variable)
@@ -70,7 +62,8 @@ class DynamicVariable
     else
       writer = variable
       unless args.size == 1 and writer.to_s =~ /(.*)=/
-        raise NoMethodError, "undefined method `#{writer}' for #{self.inspect}"
+        raise NoMethodError,
+          "undefined method `#{writer}' for #{self.inspect}"
       end
       variable = $1.to_sym
       self[variable] = args[0]
@@ -89,8 +82,8 @@ class DynamicVariable
     variables.each{|variable, value| self[variable] = value}
   end
   
-  def bindings(variable = @@un)
-    if variable == @@un
+  def bindings(variable = (un = true))
+    if un
       @bindings.map{|pair| pair.clone}
     else
       @bindings.select{|var, value| var == variable}.map!{|var, value| value}
@@ -101,8 +94,8 @@ class DynamicVariable
     set_bindings(bindings)
   end
   
-  def set_bindings(variable, bindings = @@un)
-    if bindings == @@un
+  def set_bindings(variable, bindings = (un = true))
+    if un
       bindings = variable
       @bindings = bindings.map do |pair|
         unless pair.is_a? Array and pair.size == 2
@@ -138,6 +131,86 @@ class DynamicVariable
     bindings
   end
   
+  module Mixin
+    class MixedDynamicVariable < DynamicVariable
+      def initialize(mix)
+        super()
+        @mix = mix
+      end
+      
+      def push(variable, value)
+        old_value = @mix.send(variable)
+        begin
+          pair = begin
+            find_binding(variable)
+          rescue ArgumentError
+            super
+          end
+          pair[1] = old_value
+        
+          @mix.send(variable.to_s+"=", value)
+          super
+        rescue Exception
+          @bindings.pop
+          raise
+        end
+      end
+      
+      def pop(variable)
+        value = super
+        begin
+          old_value = find_binding(variable)[1]
+        rescue ArgumentError
+          return value
+        end
+        @mix.send(variable.to_s+"=", old_value)
+        value
+      ensure
+        if @bindings.count{|var, value| var == variable} == 1
+          super
+        end
+      end
+      
+      def [](variable)
+        find_binding(variable)[1] = @mix.send(variable)
+      end
+      
+      def []=(variable, value)
+        @mix.send(variable.to_s+"=", super)
+      end
+      
+      alias original_variables variables
+      private :original_variables
+      
+      def variables
+        variables = super
+        variables.each_key do |variable|
+          variables[variable] = self[variable]
+        end
+      end
+      
+      def bindings(*args)
+        variables
+        super
+      end
+      
+      def set_bindings(*args)
+        bindings = super
+        self.variables = original_variables
+        bindings
+      end
+    end
+    
+    def dynamic_variable
+      @dynamic_variable_mixin__dynamic_variable ||=
+        MixedDynamicVariable.new(self)
+    end
+    
+    def with(*pairs, &block)
+      dynamic_variable.with(*pairs, &block)
+    end
+  end
+  
 private
   
   def find_binding(variable)
@@ -153,7 +226,7 @@ private
   end
   
   def push_pairs(pairs)
-    pairs.insert(-2, :value) if pairs.size.odd?
+    pairs.insert(-2, default_variable) if pairs.size.odd?
     each_pair(pairs) {|variable, value| push(variable, value)}
   end
   

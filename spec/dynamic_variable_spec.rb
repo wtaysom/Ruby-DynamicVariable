@@ -3,10 +3,6 @@ require 'dynamic_variable'
 describe DynamicVariable do
   subject { DynamicVariable.new }
   
-  before do
-    extend subject.with_module
-  end
-  
   ### Utilities ###
   
   def x_and_y_bindings
@@ -195,27 +191,28 @@ describe DynamicVariable do
   
   describe '#with' do
     it "should make bindings and clean up when done" do
-      with(:key, :value) do
+      subject.with(:key, :value) do
         subject.bindings.should == [[:key, :value]]
       end
       bindings_should_be_empty
     end
     
     it "should yield self to the block" do
-      with do |dv|
+      subject.with do |dv|
         dv.should == subject
       end
     end
     
     it "should return the result of its block" do
-      with{:result}.should == :result
+      subject.with{:result}.should == :result
     end
     
     it "should nest nicely" do
-      with(:value) do
+      subject.with(:value) do
         subject.bindings.should == [[:value, :value]]
-        with(:second_value) do
-          subject.bindings.should == [[:value, :value], [:value, :second_value]]
+        subject.with(:second_value) do
+          subject.bindings.should == [[:value, :value],
+            [:value, :second_value]]
         end
         subject.bindings.should == [[:value, :value]]
       end
@@ -224,7 +221,7 @@ describe DynamicVariable do
     
     it "should be exception safe" do
       expect do
-        with(:value) do
+        subject.with(:value) do
           subject.bindings.should == [[:value, :value]]
           raise
         end
@@ -235,7 +232,7 @@ describe DynamicVariable do
     context "when called" do
       context "with no arguments" do
         it "should bind :value to nil" do
-          with do
+          subject.with do
             subject.bindings.should == [[:value, nil]]
           end
         end
@@ -243,7 +240,7 @@ describe DynamicVariable do
       
       context "with one argument" do
         it "should bind :value to argument" do
-          with(:argument) do
+          subject.with(:argument) do
             subject.bindings.should == [[:value, :argument]]
           end
         end
@@ -251,7 +248,7 @@ describe DynamicVariable do
       
       context "with two arguments" do
         it "should bind the first to the second" do
-          with(:first, :second) do
+          subject.with(:first, :second) do
             subject.bindings.should == [[:first, :second]]
           end
         end
@@ -259,7 +256,7 @@ describe DynamicVariable do
       
       context "with an odd number of arguments" do
         it "should bind :value to the second to last" do
-          with(:first, :second, :last) do
+          subject.with(:first, :second, :last) do
             subject.bindings.should == [[:first, :second], [:value, :last]]
           end
         end
@@ -267,7 +264,7 @@ describe DynamicVariable do
       
       context "with an even number of arguments" do
         it "should bind variable, value pairs" do
-          with(:var1, :val1, :var2, :val2, :var3, :val3) do
+          subject.with(:var1, :val1, :var2, :val2, :var3, :val3) do
             subject.bindings.should ==
               [[:var1, :val1], [:var2, :val2], [:var3, :val3]]
           end
@@ -276,7 +273,7 @@ describe DynamicVariable do
       
       context "with a variable repeated more than once" do
         it "should bind the variable twice and unbind when done" do
-          with(:var, 1, :var, 2) do
+          subject.with(:var, 1, :var, 2) do
             subject.bindings.should == [[:var, 1], [:var, 2]]
           end
           subject.bindings.should == []
@@ -294,12 +291,25 @@ describe DynamicVariable do
     end
   end
   
-  describe '#with_module' do
-    it "should return a Module with a #with method" do
-      mod = subject.with_module
-      mod.should be_a Module
-      methods = mod.instance_methods(false)
-      methods.map(&:to_sym).should == [:with]
+  describe '#default_variable' do
+    it 'should default to :value' do
+      subject.default_variable.should == :value
+    end
+  end
+  
+  describe '#default_variable=' do
+    context 'when #with is called' do
+      it 'should use default_variable for 0 and odd numbers of bindings' do
+        subject.default_variable = :v
+        subject.with do
+          subject.with(1) do
+            subject.with(:v, 2, 3) do
+              subject.bindings.should ==
+                [[:v, nil], [:v, 1], [:v, 2], [:v, 3]]
+            end
+          end
+        end
+      end
     end
   end
   
@@ -575,6 +585,167 @@ describe DynamicVariable do
             "expected bindings to be Array, got a Symbol"
         end
       end   
+    end
+  end
+  
+  describe DynamicVariable::Mixin do
+    class MixinExample
+      include DynamicVariable::Mixin
+      
+      attr_accessor :x, :y
+    end
+    
+    subject { MixinExample.new }
+    
+    describe '#with' do
+      it "should bind attributes dynamically" do
+        subject.x = 5
+        subject.with(:x, 4, :y, 3) do
+          subject.x.should == 4
+          subject.y.should == 3
+          subject.y = 2
+          subject.y.should == 2
+          subject.with(:x, 1, :y, 0) do
+            subject.x.should == 1
+            subject.y.should == 0
+          end
+          subject.x.should == 4
+          subject.y.should == 2
+        end
+        subject.x.should == 5
+        subject.y.should == nil
+      end
+      
+      context "when readers and writers raise errors" do
+        context "when reader raises during push" do
+          it "should unbind bound variables" do
+            subject.x = 5
+            
+            class <<subject
+              def y
+                raise "oops"
+              end
+            end
+            
+            did_call_block = false
+            expect do
+              subject.with(:x, 4, :y, 3) do
+                did_call_block = true
+              end
+            end.should raise_error("oops")
+            
+            subject.x.should == 5
+            subject.dynamic_variable.bindings.should == []
+            did_call_block.should be_false
+          end
+        end
+        
+        context "when writer raises during push" do
+          it "should unbind bound variables" do
+            subject.x = 5
+            
+            class <<subject
+              def x=(x)
+                raise "oops"
+              end
+            end
+            
+            did_call_block = false
+            expect do
+              subject.with(:x, 4, :y, 3) do
+                did_call_block = true
+              end
+            end.should raise_error("oops")
+            
+            subject.x.should == 5
+            subject.dynamic_variable.bindings.should == []
+            did_call_block.should be_false
+          end
+        end
+        
+        context "when writer raises during pop" do
+          it "should unbind bound variables" do
+            subject.x = 5
+            
+            did_call_block = false
+            expect do
+              subject.with(:x, 4, :y, 3) do
+                did_call_block = true
+                
+                class <<subject
+                  def y=(y)
+                    raise "oops"
+                  end
+                end
+              end
+            end.should raise_error("oops")
+            
+            subject.x.should == 5
+            subject.dynamic_variable.bindings.should == []
+            did_call_block.should be_true
+          end
+        end
+      end
+    end
+    
+    describe '#dynamic_variable' do
+      context "when reading a variable through" do
+        def self.it_should_be_up_to_date
+          it "should be up to date" do
+            subject.with(:x, 4, :y, 3) do
+              subject.x = 2
+              subject.y = 1
+
+              yield(subject.dynamic_variable)
+            end
+          end
+        end
+        
+        context "#[]" do
+          it_should_be_up_to_date do |dv|
+            dv.x.should == 2
+          end
+        end
+        
+        context "#variables" do
+          it_should_be_up_to_date do |dv|
+            dv.variables.should == {:x => 2, :y => 1}
+          end
+        end
+        
+        context "#bindings" do
+          it_should_be_up_to_date do |dv|
+            dv.bindings.should == [[:x, nil], [:x, 2], [:y, nil], [:y, 1]]
+          end
+        end
+      end
+
+      context "when writing variable through" do
+        def self.it_should_be_updated
+          it "should be updated" do
+            subject.with(:x, 4, :y, 3) do
+              yield(subject, subject.dynamic_variable)
+            end
+          end
+        end
+        
+        context "#[]=" do
+          it_should_be_updated do |subject, dv|
+            dv.x = 2
+            subject.x.should == 2
+          end
+        end
+        
+        context "#bindings=" do
+          it_should_be_updated do |subject, dv|
+            dv.bindings.should == [[:x, nil], [:x, 4], [:y, nil], [:y, 3]]
+            
+            dv.bindings = [[:x, nil], [:x, 2], [:y, nil], [:y, 1]]
+            subject.x.should == 2
+            subject.y.should == 1
+          end
+        end
+      end
     end
   end
 end
