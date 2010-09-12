@@ -7,7 +7,7 @@ ensure
 end
 
 
-describe '#simple_with' do it 'should behave' do
+describe '#simple_with' do it "should behave" do
 
 simple_with(3) do
   simple_with(4) do

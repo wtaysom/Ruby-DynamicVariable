@@ -81,6 +81,33 @@ A DynamicVariable storing one `:value` and then `:another`:
 	  dv.value.should == 2
 	end
 
+# DynamicVariable::Mixin
+
+The Mixin module adds a dynamic variable quality to any class:
+
+	class MixinExample
+	  include DynamicVariable::Mixin
+	  
+	  attr_accessor :x
+	  
+	  def try
+	    self.x = 4
+	    x.should == 4
+	    with(:x, 3) do
+	      x.should == 3
+	      self.x = 2
+	      x.should == 2
+	      with(:x, 1) do
+	        x.should == 1
+	      end
+	      x.should == 2
+	    end
+	    x.should == 4
+	  end
+	end
+	
+	MixinExample.new.try
+
 # Why have a library?
 
 Isn't it easy to set and reset a flag as the context changes?  Sure, just watch out for raise, throw, and nesting:
