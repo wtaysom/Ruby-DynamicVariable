@@ -5,24 +5,27 @@
 
 Gem::Specification.new do |s|
   s.name = %q{dynamic_variable}
-  s.version = "1.0.0"
+  s.version = "1.1.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["William Taysom"]
-  s.date = %q{2010-09-09}
+  s.date = %q{2010-09-12}
   s.description = %q{Occasionally a method's behavior should depend on the context in which it is called. What is happening above me on the stack? DynamicVariable helps you in these context dependent situations.}
   s.email = %q{wtaysom@gmail.com}
   s.extra_rdoc_files = [
-    "README.md"
+    "ChangeLog.md",
+     "README.md"
   ]
   s.files = [
     ".gitignore",
+     "ChangeLog.md",
      "README.md",
      "Rakefile",
      "VERSION",
      "doc/readme_code/01example_at_start.rb",
      "doc/readme_code/02example_with_debug.rb",
-     "doc/readme_code/03simple_with.rb",
+     "doc/readme_code/03mixin.rb",
+     "doc/readme_code/04simple_with.rb",
      "dynamic_variable.gemspec",
      "lib/dynamic_variable.rb",
      "spec/dynamic_variable_spec.rb"
